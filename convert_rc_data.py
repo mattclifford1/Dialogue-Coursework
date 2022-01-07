@@ -31,17 +31,19 @@ def add_spans(sample, dialogues):
 
     return sample
 
-train_dialogues = load_doc2dial_dataset(name="dialogue_domain", split="train")
-val_dialogues = load_doc2dial_dataset(name="dialogue_domain", split="validation")
+if __name__ == '__main__':
+    train_dialogues = load_doc2dial_dataset(name="dialogue_domain", split="train")
+    val_dialogues = load_doc2dial_dataset(name="dialogue_domain", split="validation")
 
-documents = load_doc2dial_dataset(name="document_domain", split="train")
+    documents = load_doc2dial_dataset(name="document_domain", split="train")
 
-train_data = load_doc2dial_dataset(name="doc2dial_rc", split="train")
-val_data = load_doc2dial_dataset(name="doc2dial_rc", split="validation")
+    train_data = load_doc2dial_dataset(name="doc2dial_rc", split="train")
+    val_data = load_doc2dial_dataset(name="doc2dial_rc", split="validation")
 
-new_train_data = pd.DataFrame(columns=['id', 'question', 'context', 'answers', 'spans',  'domain', 'title'])
+    new_train_data = pd.DataFrame(columns=['id', 'question', 'context', 'answers', 'spans',  'domain', 'title'])
 
-for ex in tqdm(train_data):
-    new_train_data = new_train_data.append(add_spans(ex, train_dialogues), ignore_index=True)
-
-print(new_train_data.head())
+    for ex in tqdm(train_data):
+        new_train_data = new_train_data.append(add_spans(ex, train_dialogues), ignore_index=True)
+        
+    new_train_data.to_csv('doc2dial_rc_train.csv')
+    print(new_train_data.head())
