@@ -3,6 +3,14 @@ import os
 import pandas as pd
 from datasets import load_dataset
 
+def load_own_rc_data(split='train'):
+    if split == 'train':
+        return pd.read_csv('doc2dial_rc_train.csv')
+    elif split == 'validation':
+        return pd.read_csv('doc2dial_rc_val.csv')
+    else:
+        raise ValueError('split needs to be train or validation not: '+str(split))
+
 ## A function to load a specific doc2dial dataset
 def load_doc2dial_dataset(name='dialogue_domain', split='train'):
   cache_dir = "./data_cache"
@@ -13,9 +21,6 @@ def load_doc2dial_dataset(name='dialogue_domain', split='train'):
       ignore_verifications=True,
       cache_dir=cache_dir,
   )
-
-train_data = load_doc2dial_dataset(name="doc2dial_rc", split="train")
-val_data = load_doc2dial_dataset(name="doc2dial_rc", split="validation")
 
 def save_and_test_preds(preds, file):
     # test on metrics
@@ -72,4 +77,6 @@ def add_spans(sample, dialogues):
 
 
 if __name__ == '__main__':
+    train_data = load_doc2dial_dataset(name="doc2dial_rc", split="train")
+    val_data = load_doc2dial_dataset(name="doc2dial_rc", split="validation")
     print_example_val_data()

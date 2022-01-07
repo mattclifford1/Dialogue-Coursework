@@ -55,10 +55,11 @@ if __name__ == '__main__':
 
     # for ex in tqdm(train_data):
     #     new_train_data = new_train_data.append(add_spans(ex, train_dialogues), ignore_index=True)
-        
+
     # new_train_data.to_csv('doc2dial_rc_train.csv')
     # print(new_train_data.head())
 
     ### Update
     new_data_train = train_data.map(add_spans)
     print(new_data_train[0])
+    new_train_data.to_csv('doc2dial_rc_train.csv')
