@@ -1,24 +1,9 @@
 from datasets import load_dataset
 import numpy as np
+import utils
 
 split = "train"
 cache_dir = "./data_cache"
-
-dataset_dialogue = load_dataset(
-    "doc2dial",
-    name="dialogue_domain",  # this is the name of the dataset for the second subtask, dialog generation
-    split=split,
-    ignore_verifications=True,
-    cache_dir=cache_dir,
-)
-
-dataset_document = load_dataset(
-    "doc2dial",
-    name="document_domain",  # this is the name of the dataset for the second subtask, dialog generation
-    split=split,
-    ignore_verifications=True,
-    cache_dir=cache_dir,
-)
 
 
 def get_doc_from_id(row=0):
@@ -38,4 +23,15 @@ def get_doc_from_id(row=0):
     print('Document sp_id_title: ', dataset_document['spans'][ind][int(sp_id)]['title'])
     print('Document sp_id_text: ', dataset_document['spans'][ind][int(sp_id)]['text_sec'])
 
-get_doc_from_id()
+if __name__ == '__main__':
+    train_data = utils.load_doc2dial_dataset(name="doc2dial_rc", split="train")
+    '''
+    train_data has keys 'id', 'title', 'context', 'question', 'answers', 'domain'
+    'id': id of the data_entry
+    'title': title of the context
+    'context': text of document
+    'question': full dialogue between user and agent up until relevant question
+    'answers': text response
+    'domain': relevant document domain
+    '''
+    print(train_data)
