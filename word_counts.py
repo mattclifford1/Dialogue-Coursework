@@ -5,6 +5,7 @@ with corresponding span occurance for use with NB classifiers
 import utils
 from tqdm import tqdm
 import ast
+from data_investigation import get_inds_of_new_entries
 
 def get_first_question(question_str):
     rm_user = question_str[5:] # get rid of starting user
@@ -34,27 +35,27 @@ def count_words(count_str, unique_words):
             counts[unique_words[word]] += 1
     return counts
 
-def get_doc_types(data):
-    docs = []
+def get_unique_contexts(data):
+    contexts = []
     for row in range(len(data)):
-        doc = data['domain'][row]
-        if doc not in docs:
-            docs.append(doc)
-    return docs
+        doc = data['context'][row]
+        if doc not in contexts:
+            contexts.append(doc)
+    return contexts
 
-def get_spans_per_doc(data):
-    docs = get_doc_types(data)
+def get_spans_per_context(data):
+    contexts = get_unique_contexts(data)
     # set up data storage
-    spans_in_doc = {}
-    for doc in docs:
-        spans_in_doc[doc] = 0
+    spans_in_context = {}
+    for context in contexts:
+        spans_in_context[context] = 0
     # loop through to find the max of the spans
     for row in range(len(data)):
-        doc = data['domain'][row]
+        context = data['context'][row]
         num_spans = get_num_spans(data['spans'][row])
-        if num_spans > spans_in_doc[doc]:
-            spans_in_doc[doc] = num_spans
-    return spans_in_doc
+        if num_spans > spans_in_context[context]:
+            spans_in_context[context] = num_spans
+    return spans_in_context
 
 def get_num_spans(span_str):
     span_dict = ast.literal_eval(span_str)
@@ -67,7 +68,6 @@ def one_hot_spans(answers_str, max_spans):
         if max_spans < int(span): # some val spans are bigger?
             one_hot[int(span)-1] += 1
     return one_hot
-
 
 def count_questions_and_spans(data, unique_words, num_spans):
     '''
@@ -86,11 +86,46 @@ def count_questions_and_spans(data, unique_words, num_spans):
         count_data[doc]['X'].append(count_words(first_question, unique_words))
         count_data[doc]['Y'].append(one_hot_spans(answers, num_spans[doc]))
 
+def get_train_val(train_data, val_data):
+    dont_use_val_inds = get_inds_of_new_entries(train_data, val_data)
+    unique_words = get_unique_words_in_questions(train_data)
+    num_spans = get_spans_per_context(train_data)
+    # set up data storage
+    train = {}
+    val = {}
+    for context in num_spans.keys():
+        train[context] = {'X':[], 'Y':[]}
+        val[context] = {'X':[], 'Y':[]}
+    # get train data
+    for row in tqdm(range(len(train_data))):
+        context = train_data['context'][row]
+        answers = train_data['answers'][row]
+        first_question = get_first_question(train_data['question'][row])
+        # append in the format we want
+        train[context]['X'].append(count_words(first_question, unique_words))
+        train[context]['Y'].append(one_hot_spans(answers, num_spans[context]))
+    # get val data
+    for row in tqdm(range(len(val_data))):
+        if row in dont_use_val_inds:
+            continue
+        context = val_data['context'][row]
+        answers = val_data['answers'][row]
+        first_question = get_first_question(val_data['question'][row])
+        # append in the format we want
+        val[context]['X'].append(count_words(first_question, unique_words))
+        val[context]['Y'].append(one_hot_spans(answers, num_spans[context]))
+
+    return train, val
 
 if __name__ == '__main__':
     train_data = utils.load_own_rc_data(split="train")
+    val_data = utils.load_own_rc_data(split="validation")
 
-    unique_words = get_unique_words_in_questions(train_data)
-    num_spans = get_spans_per_doc(train_data)
+    get_train_val(train_data, val_data)
 
-    count_questions_and_spans(train_data, unique_words, num_spans)
+
+    # unique_words = get_unique_words_in_questions(train_data)
+    # num_spans = get_spans_per_context(train_data)
+    # print(num_spans)
+    #
+    # count_questions_and_spans(train_data, unique_words, num_spans)

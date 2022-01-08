@@ -3,7 +3,6 @@ investigate data, look at errors in the data and how train/val differ
 '''
 import utils
 from tqdm import tqdm
-from word_counts import get_num_spans
 
 
 def count_column(data, col='context'):
@@ -35,6 +34,7 @@ def get_not_in_list(data, list_of_values, col='context'):
     return new_entries, inds
 
 def count_unique_spans(data):
+    from word_counts import get_num_spans
     spans_count = {}
     for row in range(len(data)):
         span_str = data['spans'][row]
