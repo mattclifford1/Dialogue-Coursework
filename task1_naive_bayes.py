@@ -1,7 +1,5 @@
 import numpy as np
-from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import BernoulliNB
-from sklearn.naive_bayes import ComplementNB
 import utils
 from word_counts import word_counter
 from tqdm import tqdm
@@ -13,7 +11,7 @@ import pickle
 from sklearn.utils.class_weight import compute_sample_weight
 
 def train_clf(X_train, y_train):
-    clf = ComplementNB()
+    clf = BernoulliNB()
     sample_weighting = compute_sample_weight(class_weight='balanced', y=y_train)
     clf.fit(X_train, y_train, sample_weight=sample_weighting)
     return clf
@@ -39,8 +37,8 @@ if __name__ == '__main__':
             clfs[context] = {}
             for span in range(Y.shape[1]):
                 clfs[context][span] = train_clf(X, Y[:, span])
-        with open(train_path, 'wb') as file:
-            pickle.dump(clfs, file)
+        # with open(train_path, 'wb') as file:
+        #     pickle.dump(clfs, file)
     else:
         print('Loading model: ', train_path)
         with open(train_path, 'rb') as file:

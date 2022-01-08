@@ -30,7 +30,7 @@ def get_not_in_list(data, list_of_values, col='context'):
             inds.append(row)
             if entry not in new_entries:
                 new_entries.append(entry)
-    print('number of new unique entries in ', col, ': ', len(new_entries))
+    # print('number of new unique entries in ', col, ': ', len(new_entries))
     return new_entries, inds
 
 def count_unique_spans(data):
@@ -75,7 +75,7 @@ def get_inds_of_new_entries(refernce_data, new_data, col='context'):
     '''
     count = count_column(refernce_data, col)
     _, inds = get_not_in_list(new_data, count.keys(), col)
-    print('Percent diff: ', len(inds)/len(new_data)*100)
+    # print('Percent diff: ', len(inds)/len(new_data)*100)
     return inds
 
 
