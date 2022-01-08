@@ -1,13 +1,18 @@
 import numpy as np
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import BernoulliNB
+from sklearn.naive_bayes import ComplementNB
 import utils
-from word_counts import get_train_val
+from word_counts import word_counter
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+import ast
+import os
+import pickle
 
 def train_clf(X_train, y_train):
-    clf = BernoulliNB()
+    clf = ComplementNB()
     clf.fit(X_train, y_train)
     return clf
 
@@ -17,29 +22,53 @@ if __name__ == '__main__':
     val_data = utils.load_own_rc_data(split="validation")
 
     print('Getting word count data')
-    train, val = get_train_val(train_data, val_data)
+    counter = word_counter(train_data)
+    train = counter.convert_data(train_data)
+    val = counter.convert_data(val_data)
 
     # train a binary classifier per span within a context
-    clfs = {}
     print('Training')
-    for context in tqdm(train.keys()):
-        X = np.array(train[context]['X'])
-        Y = np.array(train[context]['Y'])
-        clfs[context] = {}
-        for span in range(Y.shape[1]):
-            clfs[context][span] = train_clf(X, Y[:, span])
+    train_path = 'NB_classifiers.pickle'
+    if not os.path.exists(train_path):
+        clfs = {}
+        for context in tqdm(train.keys()):
+            X = np.array(train[context]['X'])
+            Y = np.array(train[context]['Y'])
+            clfs[context] = {}
+            for span in range(Y.shape[1]):
+                clfs[context][span] = train_clf(X, Y[:, span])
+        with open(train_path, 'wb') as file:
+            pickle.dump(clfs, file)
+    else:
+        print('Loading model: ', train_path)
+        with open(train_path, 'rb') as file:
+            clfs = pickle.load(file)
 
     # validate training
-    scores = []
+    preds = []
     print('Evaluating')
-    for context in tqdm(val.keys()):
-        if val[context]['X'] == []:  # no examples for this context
+    skip_inds = counter.no_context_availble(val_data)
+    for row in tqdm(range(len(val_data))):
+        if row in skip_inds:
             continue
-        X = np.array(val[context]['X'])
-        Y = np.array(val[context]['Y'])
-        for span in range(Y.shape[1]):
-            y_pred = clfs[context][span].predict(X)
-            y_true = Y[:, span]
-            acc = accuracy_score(y_true, y_pred)
-            scores.append(acc)
-    print('AVG score: ', sum(scores)/len(scores)*100, '% out of ', len(scores), ' examples')
+        docs = ast.literal_eval(val_data['spans'][row])
+        context = val_data['context'][row]
+        X, Y = counter.convert_row(val_data, row)
+        X = np.array(X)
+        # get predicted spans for current X
+        pred_spans = []
+        for span in range(len(Y)):
+            y_pred = clfs[context][span].predict(X.reshape(1, -1))
+            if y_pred[0] == 1:
+                pred_spans.append(span+1)
+        # build text spans
+        text = ''
+        for i in pred_spans:
+            text += docs.get(str(i), '')
+        if len(pred_spans) == 0:
+            no_ans_prob = 1
+        else:
+            no_ans_prob = 0
+        print(text)
+        preds.append({"id":val_data["id"][row], "prediction_text":text, "no_answer_probability":no_ans_prob})
+    utils.save_and_test_preds(preds, 'predictions_subtask1_NB.json')

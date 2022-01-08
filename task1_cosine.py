@@ -5,7 +5,7 @@ from nltk.tokenize import word_tokenize
 import nltk
 import ast
 from tqdm import tqdm
-import utilsimport
+import utils
 
 nltk.download('punkt')
 
@@ -63,6 +63,7 @@ if __name__ == '__main__':
     preds = []
     new_val_data_slice = new_val_data[:]
     for i in tqdm(range(len(new_val_data_slice))):
-      preds.append(train_predict_doc2vec(new_val_data_slice, i))
+        pred = train_predict_doc2vec(new_val_data_slice, i)
+        preds.append(pred)
 
     utils.save_and_test_preds(preds, 'predictions_subtask1_cosine_simple.json')
