@@ -10,10 +10,12 @@ from sklearn.metrics import f1_score
 import ast
 import os
 import pickle
+from sklearn.utils.class_weight import compute_sample_weight
 
 def train_clf(X_train, y_train):
     clf = ComplementNB()
-    clf.fit(X_train, y_train)
+    sample_weighting = compute_sample_weight(class_weight='balanced', y=y_train)
+    clf.fit(X_train, y_train, sample_weight=sample_weighting)
     return clf
 
 
@@ -69,6 +71,5 @@ if __name__ == '__main__':
             no_ans_prob = 1
         else:
             no_ans_prob = 0
-        print(text)
         preds.append({"id":val_data["id"][row], "prediction_text":text, "no_answer_probability":no_ans_prob})
     utils.save_and_test_preds(preds, 'predictions_subtask1_NB.json')
