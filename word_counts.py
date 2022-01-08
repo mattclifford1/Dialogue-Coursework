@@ -6,17 +6,6 @@ import utils
 from tqdm import tqdm
 import ast
 
-def count_docs(data):
-    # get number of docs
-    doc_count = {}
-    for row in range(len(data)):
-        doc = data['domain'][row]
-        if doc in doc_count.keys():
-            doc_count[doc] += 1
-        else:
-            doc_count[doc] = 1
-    print('DOC COUNTS: ', doc_count)
-
 def get_first_question(question_str):
     rm_user = question_str[5:] # get rid of starting user
     # tab char split the turns
@@ -28,7 +17,7 @@ def get_unique_words_in_questions(data):
     unique_words = {}
     count = 0
     for row in range(len(data)):
-        questions = train_data['question'][row]
+        questions = data['question'][row]
         first_question = get_first_question(questions)
         words = first_question.split(' ')
         for word in words:
@@ -75,7 +64,8 @@ def one_hot_spans(answers_str, max_spans):
     spans = ast.literal_eval(answers_str)['spans'].keys()
     one_hot = [0]*max_spans
     for span in spans:
-        one_hot[int(span)-1] += 1
+        if max_spans < int(span): # some val spans are bigger?
+            one_hot[int(span)-1] += 1
     return one_hot
 
 
