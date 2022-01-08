@@ -65,8 +65,7 @@ def one_hot_spans(answers_str, max_spans):
     spans = ast.literal_eval(answers_str)['spans'].keys()
     one_hot = [0]*max_spans
     for span in spans:
-        if max_spans < int(span): # some val spans are bigger?
-            one_hot[int(span)-1] += 1
+        one_hot[int(span)-1] = 1
     return one_hot
 
 def count_questions_and_spans(data, unique_words, num_spans):
