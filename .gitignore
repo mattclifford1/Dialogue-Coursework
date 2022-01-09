@@ -1,5 +1,10 @@
 data_cache
 *.csv
+*.pickle
+data/bert_*
+distilbert*
+runs
+predictions*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

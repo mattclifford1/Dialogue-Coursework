@@ -65,8 +65,7 @@ def one_hot_spans(answers_str, max_spans):
     spans = ast.literal_eval(answers_str)['spans'].keys()
     one_hot = [0]*max_spans
     for span in spans:
-        if max_spans < int(span): # some val spans are bigger?
-            one_hot[int(span)-1] += 1
+        one_hot[int(span)-1] = 1
     return one_hot
 
 def count_questions_and_spans(data, unique_words, num_spans):
@@ -86,43 +85,65 @@ def count_questions_and_spans(data, unique_words, num_spans):
         count_data[doc]['X'].append(count_words(first_question, unique_words))
         count_data[doc]['Y'].append(one_hot_spans(answers, num_spans[doc]))
 
-def get_train_val(train_data, val_data):
-    dont_use_val_inds = get_inds_of_new_entries(train_data, val_data)
-    unique_words = get_unique_words_in_questions(train_data)
-    num_spans = get_spans_per_context(train_data)
-    # set up data storage
-    train = {}
-    val = {}
-    for context in num_spans.keys():
-        train[context] = {'X':[], 'Y':[]}
-        val[context] = {'X':[], 'Y':[]}
-    # get train data
-    for row in tqdm(range(len(train_data))):
-        context = train_data['context'][row]
-        answers = train_data['answers'][row]
-        first_question = get_first_question(train_data['question'][row])
-        # append in the format we want
-        train[context]['X'].append(count_words(first_question, unique_words))
-        train[context]['Y'].append(one_hot_spans(answers, num_spans[context]))
-    # get val data
-    for row in tqdm(range(len(val_data))):
-        if row in dont_use_val_inds:
-            continue
-        context = val_data['context'][row]
-        answers = val_data['answers'][row]
-        first_question = get_first_question(val_data['question'][row])
-        # append in the format we want
-        val[context]['X'].append(count_words(first_question, unique_words))
-        val[context]['Y'].append(one_hot_spans(answers, num_spans[context]))
 
-    return train, val
+class word_counter():
+    def __init__(self, base_dataset):
+        self.base_dataset = base_dataset
+        self.unique_words = get_unique_words_in_questions(self.base_dataset)
+        self.num_spans = get_spans_per_context(self.base_dataset)
+
+    def convert_data(self, data):
+        dont_use_inds = get_inds_of_new_entries(self.base_dataset, data)
+        # set up data storage
+        new_data = {}
+        for context in self.num_spans.keys():
+            new_data[context] = {'X':[], 'Y':[]}
+        # get new_data data
+        for row in tqdm(range(len(data))):
+            if row in dont_use_inds:
+                continue
+            context = data['context'][row]
+            answers = data['answers'][row]
+            first_question = get_first_question(data['question'][row])
+            # append in the format we want
+            new_data[context]['X'].append(count_words(first_question, self.unique_words))
+            new_data[context]['Y'].append(one_hot_spans(answers, self.num_spans[context]))
+        return new_data
+
+    def no_context_availble(self, data):
+        return get_inds_of_new_entries(self.base_dataset, data)
+
+    def convert_row(self, data, row):
+        context = data['context'][row]
+        answers = data['answers'][row]
+        first_question = get_first_question(data['question'][row])
+        X = count_words(first_question, self.unique_words)
+        Y = one_hot_spans(answers, self.num_spans[context])
+        return X, Y
+
+
+
 
 if __name__ == '__main__':
     train_data = utils.load_own_rc_data(split="train")
     val_data = utils.load_own_rc_data(split="validation")
 
-    get_train_val(train_data, val_data)
+    counter = word_counter(train_data)
+    # train = counter.convert_data(train_data)
+    # val = counter.convert_data(val_data)
 
+    skip_inds = counter.no_context_availble(val_data)
+    for row in tqdm(range(len(val_data))):
+        if row in skip_inds:
+            continue
+        docs = ast.literal_eval(val_data['spans'][row])
+        context = val_data['context'][row]
+        # X, Y = counter.convert_row(val_data, row)
+        fq = get_first_question(val_data['question'][row])
+        a = val_data['answers'][row]
+        print(a)
+        print(len(count_words(fq, counter.unique_words)))
+        print(len(one_hot_spans(a, counter.num_spans[context])))
 
     # unique_words = get_unique_words_in_questions(train_data)
     # num_spans = get_spans_per_context(train_data)

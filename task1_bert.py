@@ -131,11 +131,26 @@ def preprocess_val(examples):
     inputs["context"] = examples["context"]
     return inputs
 
+def load_doc2dial_dataset(name='dialogue_domain', split='train'):
+    cache_dir = "./data_cache"
+
+    return load_dataset(
+      "doc2dial",
+      name=name,
+      split=split,
+      ignore_verifications=True,
+      cache_dir=cache_dir,
+    )
+
+def format_answer(qid, text, proba):
+    return {"id":qid, "prediction_text":text, "no_answer_probability":1-proba}
 
 if __name__ == '__main__':
+    train_data = load_doc2dial_dataset(name="doc2dial_rc", split="train")
+    val_data = load_doc2dial_dataset(name="doc2dial_rc", split="validation")
     # get data
-    train_data = utils.load_doc2dial_dataset(name="doc2dial_rc", split="train")
-    val_data = utils.load_doc2dial_dataset(name="doc2dial_rc", split="validation")
+    # train_data = utils.load_doc2dial_dataset(name="doc2dial_rc", split="train")
+    # val_data = utils.load_doc2dial_dataset(name="doc2dial_rc", split="validation")
     # tokenise data
     tok_train_data = train_data.map(preprocess_function, batched=True, remove_columns=train_data.column_names)
     tok_val_data = val_data.map(preprocess_function, batched=True, remove_columns=val_data.column_names)
@@ -165,70 +180,68 @@ if __name__ == '__main__':
             data_collator=default_data_collator,
             tokenizer=tokenizer
         )
+        trainer.train()
     else:
         checkpoint = "distilbert-base-uncased-finetuned-doc2dial/checkpoint-1000/"
         checkpoint = "bert_matt_1/"
         trainer = AutoModelForQuestionAnswering.from_pretrained(checkpoint)
         tok_val_data = val_data.map(preprocess_val, batched=True)
 
-## Evaluate
-softmax = torch.nn.functional.softmax
+    ## Evaluate
+    softmax = torch.nn.functional.softmax
 
-def format_answer(qid, text, proba):
-    return {"id":qid, "prediction_text":text, "no_answer_probability":1-proba}
+    # loop over to get all predictions
+    all_preds = []
+    for i in tqdm(range(0, tok_val_data.num_rows)):
+        example = tok_val_data.select([i])
+        short_question = [q.split('\t')[0][5:] for q in example["question"]]
+        question = [q.strip() for q in short_question]
 
-# loop over to get all predictions
-all_preds = []
-for i in tqdm(range(0, tok_val_data.num_rows)):
-    example = tok_val_data.select([i])
-    short_question = [q.split('\t')[0][5:] for q in example["question"]]
-    question = [q.strip() for q in short_question]
+        inputs = tokenizer(question,
+                           example["context"],
+                            max_length=512,
+                            truncation="only_second",
+                            return_offsets_mapping=True,
+                            padding="max_length",
+                            return_tensors="pt"
+            )
 
-    inputs = tokenizer(question,
-                       example["context"],
-                        max_length=512,
-                        truncation="only_second",
-                        return_offsets_mapping=True,
-                        padding="max_length",
-                        return_tensors="pt"
-        )
+        offsets = inputs["offset_mapping"]
+        sequence_ids = inputs.sequence_ids()
 
-    offsets = inputs["offset_mapping"]
-    sequence_ids = inputs.sequence_ids()
+        # inputs = tok_val_data.remove_columns(['answers', 'context', 'domain', 'id', 'end_positions',  'question', 'start_positions', 'title'])
+        # inputs
 
-    # inputs = tok_val_data.remove_columns(['answers', 'context', 'domain', 'id', 'end_positions',  'question', 'start_positions', 'title'])
-    # inputs
+        # outputs = trainer(**inputs)
+        outputs = trainer(inputs["input_ids"], inputs["attention_mask"])
 
-    # outputs = trainer(**inputs)
-    outputs = trainer(inputs["input_ids"], inputs["attention_mask"])
+        context = example[0]["context"]
+        qid = example[0]["id"]
+        offsets = example[0]["offset_mapping"]
 
-    context = example[0]["context"]
-    qid = example[0]["id"]
-    offsets = example[0]["offset_mapping"]
+        start_logits = softmax(outputs.start_logits[0], dim=0).detach().numpy()
+        end_logits = softmax(outputs.end_logits[0], dim=0).detach().numpy()
 
-    start_logits = softmax(outputs.start_logits[0], dim=0).detach().numpy()
-    end_logits = softmax(outputs.end_logits[0], dim=0).detach().numpy()
+    #     start_logits = softmax(outputs.start_logits[i].detach().numpy())
+    #     end_logits = softmax(outputs.end_logits[i].detach().numpy())
 
-#     start_logits = softmax(outputs.start_logits[i].detach().numpy())
-#     end_logits = softmax(outputs.end_logits[i].detach().numpy())
-
-    start_index = np.argsort(start_logits)[-1]
-    end_index = np.argsort(end_logits)[-1]
+        start_index = np.argsort(start_logits)[-1]
+        end_index = np.argsort(end_logits)[-1]
 
 
-    ## Checks the answer
-    score = (start_logits[start_index] + end_logits[end_index]) / 2.0
-#     print(start_logits[start_index], end_logits[end_index])
+        ## Checks the answer
+        score = (start_logits[start_index] + end_logits[end_index]) / 2.0
+    #     print(start_logits[start_index], end_logits[end_index])
 
-    if start_index >= end_index:
-#         print("No answer")
-        all_preds.append(format_answer(qid, "", score))
-    elif sequence_ids[start_index] == 0 or sequence_ids[start_index] ==None:
-#         print('Invalid answer')
-        all_preds.append(format_answer(qid, "", score))
-    else:
-        start_char = offsets[start_index][0]
-        end_char = offsets[end_index][1]
-        text = context[start_char: end_char]
-#         print("starting en ending positions", start_pos, end_pos)
-        all_preds.append(format_answer(qid, text, score))
+        if start_index >= end_index:
+    #         print("No answer")
+            all_preds.append(format_answer(qid, "", score))
+        elif sequence_ids[start_index] == 0 or sequence_ids[start_index] ==None:
+    #         print('Invalid answer')
+            all_preds.append(format_answer(qid, "", score))
+        else:
+            start_char = offsets[start_index][0]
+            end_char = offsets[end_index][1]
+            text = context[start_char: end_char]
+    #         print("starting en ending positions", start_pos, end_pos)
+            all_preds.append(format_answer(qid, text, score))
