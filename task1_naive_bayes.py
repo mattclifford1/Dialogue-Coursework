@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.naive_bayes import BernoulliNB
+from sklearn.naive_bayes import BernoulliNB, MultinomialNB, GaussianNB, ComplementNB, CategoricalNB
 import utils
 from word_counts import word_counter
 from tqdm import tqdm
@@ -13,7 +13,7 @@ from sklearn.utils.class_weight import compute_sample_weight
 def train_clf(X_train, y_train):
     clf = BernoulliNB()
     sample_weighting = compute_sample_weight(class_weight='balanced', y=y_train)
-    clf.fit(X_train, y_train, sample_weight=sample_weighting)
+    clf.fit(X_train, y_train)#, sample_weight=sample_weighting)
     return clf
 
 

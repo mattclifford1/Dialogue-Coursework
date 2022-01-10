@@ -75,7 +75,7 @@ def get_inds_of_new_entries(refernce_data, new_data, col='context'):
     '''
     count = count_column(refernce_data, col)
     _, inds = get_not_in_list(new_data, count.keys(), col)
-    # print('Percent diff: ', len(inds)/len(new_data)*100)
+
     return inds
 
 
@@ -89,10 +89,12 @@ if __name__ == '__main__':
     # new_entries, inds = get_not_in_list(val_data, count_context.keys(), col='context')
 
     print('seeing what contexts are in validation that arent in train')
-    get_inds_of_new_entries(train_data, val_data)
+    inds = get_inds_of_new_entries(train_data, val_data)
+    print('Percent diff: ', len(inds)/len(val_data)*100)
     print(' ')
     print('seeing what contexts are in train that arent in validation')
-    get_inds_of_new_entries(val_data, train_data)
+    inds = get_inds_of_new_entries(val_data, train_data)
+    print('Percent diff: ', len(inds)/len(train_data)*100)
 
     # count_unique_spans(train_data)
     # get_duplicated_titles(train_data)
